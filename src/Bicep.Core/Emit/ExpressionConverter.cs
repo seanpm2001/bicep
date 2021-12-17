@@ -153,6 +153,19 @@ namespace Bicep.Core.Emit
                                     listArgs.ToImmutableArray());
                             }
 
+                            if (LanguageConstants.IdentifierComparer.Equals(method.Name.IdentifierName, "getSecret"))
+                            {
+                                var indexContext = TryGetReplacementContext(resource.NameSyntax, indexExpression, method);
+                                var resourceIdOperation = new ResourceIdOperation(resource, indexContext);
+
+                                var convertedArgs = method.Arguments.SelectArray(a => ConvertExpressionOperation(a.Expression));
+
+                                return new GetKeyVaultSecretOperation(
+                                    resourceIdOperation,
+                                    convertedArgs[0],
+                                    convertedArgs.Length > 1 ? convertedArgs[1] : null);
+                            }
+
                             break;
                     }
                     throw new InvalidOperationException($"Unrecognized base expression {baseSymbol?.Kind}");

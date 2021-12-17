@@ -70,11 +70,15 @@ namespace Bicep.Core.Emit
                     return new NullValueOperation();
 
                 case ObjectSyntax objectSyntax:
-                    var properties = objectSyntax.Properties.Select(p => new ObjectPropertyOperation(
-                        p.TryGetKeyText() is {} keyName ? new ConstantValueOperation(keyName) : GetExpressionOperation(p.Key),
-                        GetExpressionOperation(p.Value)));
-
+                    var properties = objectSyntax.Properties.Select(prop => new ObjectPropertyOperation(
+                        prop.TryGetKeyText() is {} keyName ? new ConstantValueOperation(keyName) : GetExpressionOperation(prop.Key),
+                        GetExpressionOperation(prop.Value)));
                     return new ObjectOperation(properties.ToImmutableArray());
+
+                case ObjectPropertySyntax prop:
+                    return new ObjectPropertyOperation(
+                        prop.TryGetKeyText() is {} keyName ? new ConstantValueOperation(keyName) : GetExpressionOperation(prop.Key),
+                        GetExpressionOperation(prop.Value));
 
                 case ArraySyntax arraySyntax:
                     var items = arraySyntax.Items.Select(x => GetExpressionOperation(x.Value));
@@ -114,21 +118,33 @@ namespace Bicep.Core.Emit
             {
                 case ConstantValueOperation constantValueOperation when constantValueOperation.Value is bool boolValue:
                     writer.WriteValue(boolValue);
-                    break;
+                    return;
 
                 case ConstantValueOperation constantValueOperation when constantValueOperation.Value is long intValue:
                     writer.WriteValue(intValue);
-                    break;
+                    return;
 
                 case NullValueOperation _:
                     writer.WriteNull();
-                    break;
+                    return;
 
                 case ObjectOperation objectOperation:
                     writer.WriteStartObject();
                     EmitObjectProperties(objectOperation);
                     writer.WriteEndObject();
-                    break;
+                    return;
+
+                case ObjectPropertyOperation objectPropertyOperation:
+                    if (objectPropertyOperation.Key is ConstantValueOperation constantKey &&
+                        constantKey.Value is string keyValue)
+                    {
+                        EmitProperty(keyValue, objectPropertyOperation.Value);
+                    }
+                    else
+                    {
+                        EmitProperty(objectPropertyOperation.Key, objectPropertyOperation.Value);
+                    }
+                    return;
 
                 case ArrayOperation arrayOperation:
                     writer.WriteStartArray();
@@ -137,11 +153,31 @@ namespace Bicep.Core.Emit
                         EmitOperation(item);
                     }
                     writer.WriteEndArray();
-                    break;
+                    return;
+
+                case GetKeyVaultSecretOperation getKeyVaultSecret:
+                    EmitProperty("reference", () => {
+                        writer.WriteStartObject();
+
+                        EmitProperty("keyVault", () => {
+                            writer.WriteStartObject();
+                            EmitProperty("id", getKeyVaultSecret.KeyVaultId);
+                            writer.WriteEndObject();
+                        });
+
+                        EmitProperty("secretName", getKeyVaultSecret.SecretName);
+                        if (getKeyVaultSecret.SecretVersion is not null)
+                        {
+                            EmitProperty("secretVersion", getKeyVaultSecret.SecretVersion);
+                        }
+
+                        writer.WriteEndObject();
+                    });
+                    return;
 
                 default:
                     EmitLanguageOperation(operation);
-                    break;
+                    return;
             }
         }
 
@@ -281,7 +317,7 @@ namespace Bicep.Core.Emit
                 {
                     if (CanEmitAsInputDirectly(input))
                     {
-                        this.EmitProperty("input", () => EmitOperation(input));
+                        this.EmitProperty("input", input);
                     }
                     else
                     {
@@ -481,65 +517,38 @@ namespace Bicep.Core.Emit
 
         public void EmitModuleParameterValue(SyntaxBase syntax)
         {
-            if (syntax is InstanceFunctionCallSyntax instanceFunctionCall && string.Equals(instanceFunctionCall.Name.IdentifierName, "getSecret", LanguageConstants.IdentifierComparison))
+            var operation = GetExpressionOperation(syntax);
+            if (operation is not GetKeyVaultSecretOperation)
             {
-                var (baseSyntax, indexExpression) = SyntaxHelper.UnwrapArrayAccessSyntax(instanceFunctionCall.BaseExpression);
-
-                if (context.SemanticModel.ResourceMetadata.TryLookup(baseSyntax) is not {} resource ||
-                    !StringComparer.OrdinalIgnoreCase.Equals(resource.TypeReference.FormatType(), AzResourceTypeProvider.ResourceTypeKeyVault))
-                {
-                    throw new InvalidOperationException("Cannot emit parameter's KeyVault secret reference.");
-                }
-
-                var keyVaultId = converter.CreateConverterForIndexReplacement(resource.NameSyntax, indexExpression, instanceFunctionCall)
-                    .GetFullyQualifiedResourceId(resource);
-
-                writer.WritePropertyName("reference");
-                writer.WriteStartObject();
-                writer.WritePropertyName("keyVault");
-                writer.WriteStartObject();
-
-                writer.WritePropertyName("id");
-
-                var keyVaultIdSerialised = ExpressionSerializer.SerializeExpression(keyVaultId);
-                writer.WriteValue(keyVaultIdSerialised);
-
-                writer.WriteEndObject(); // keyVault
-
-                writer.WritePropertyName("secretName");
-                var secretName = converter.ConvertExpression(instanceFunctionCall.Arguments[0].Expression);
-                var secretNameSerialised = ExpressionSerializer.SerializeExpression(secretName);
-                writer.WriteValue(secretNameSerialised);
-
-                if (instanceFunctionCall.Arguments.Length > 1)
-                {
-                    writer.WritePropertyName("secretVersion");
-                    var secretVersion = converter.ConvertExpression(instanceFunctionCall.Arguments[1].Expression);
-                    var secretVersionSerialised = ExpressionSerializer.SerializeExpression(secretVersion);
-                    writer.WriteValue(secretVersionSerialised);
-                }
-                writer.WriteEndObject(); // reference
-
-                return;
+                operation = new ObjectPropertyOperation(
+                    new ConstantValueOperation("value"),
+                    operation);
             }
-            EmitProperty("value", syntax);
+
+            EmitOperation(operation);
         }
+
+        public void EmitProperty(Operation name, Operation operation)
+            => EmitPropertyInternal(converter.ConvertOperation(name), () => EmitOperation(operation));
+
+        public void EmitProperty(string name, Operation operation)
+            => EmitPropertyInternal(new JTokenExpression(name), () => EmitOperation(operation));
+
+        public void EmitPropertyWithTransform(string name, Operation operation, Func<LanguageExpression, LanguageExpression> convertedValueTransform)
+            => EmitPropertyInternal(new JTokenExpression(name), () =>
+            {
+                var converted = converter.ConvertOperation(operation);
+                var transformed = convertedValueTransform(converted);
+                var serialized = ExpressionSerializer.SerializeExpression(transformed);
+
+                this.writer.WriteValue(serialized);
+            });
 
         public void EmitProperty(string name, LanguageExpression expressionValue)
             => EmitPropertyInternal(new JTokenExpression(name), () =>
             {
                 var propertyValue = ExpressionSerializer.SerializeExpression(expressionValue);
                 writer.WriteValue(propertyValue);
-            });
-
-        public void EmitPropertyWithTransform(string name, Operation value, Func<LanguageExpression, LanguageExpression> convertedValueTransform)
-            => EmitPropertyInternal(new JTokenExpression(name), () =>
-            {
-                var converted = converter.ConvertOperation(value);
-                var transformed = convertedValueTransform(converted);
-                var serialized = ExpressionSerializer.SerializeExpression(transformed);
-
-                this.writer.WriteValue(serialized);
             });
 
         public void EmitPropertyWithTransform(string name, SyntaxBase value, Func<LanguageExpression, LanguageExpression> convertedValueTransform)

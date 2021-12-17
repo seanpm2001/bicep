@@ -30,7 +30,7 @@ namespace Bicep.Core.Emit
     {
         public const string GeneratorMetadataPath = "metadata._generator";
         public const string NestedDeploymentResourceType = AzResourceTypeProvider.ResourceTypeDeployments;
-        
+
         // IMPORTANT: Do not update this API version until the new one is confirmed to be deployed and available in ALL the clouds.
         public const string NestedDeploymentResourceApiVersion = "2020-06-01";
 
@@ -136,7 +136,7 @@ namespace Bicep.Core.Emit
             }
 
             emitter.EmitProperty("contentVersion", "1.0.0.0");
-            
+
             this.EmitMetadata(jsonWriter, emitter);
 
             this.EmitParametersIfPresent(jsonWriter, emitter);
@@ -292,7 +292,7 @@ namespace Bicep.Core.Emit
 
             foreach (var import in this.context.SemanticModel.Root.ImportDeclarations)
             {
-                var namespaceType = context.SemanticModel.GetTypeInfo(import.DeclaringSyntax) as NamespaceType  
+                var namespaceType = context.SemanticModel.GetTypeInfo(import.DeclaringSyntax) as NamespaceType
                     ?? throw new ArgumentException("Imported namespace does not have namespace type");
 
                 jsonWriter.WritePropertyName(import.DeclaringImport.AliasName.IdentifierName);
@@ -383,7 +383,7 @@ namespace Bicep.Core.Emit
             //
             // Children inherit the conditions of their parents, etc. This avoids a problem
             // where we emit a dependsOn to something that's not in the template, or not
-            // being evaulated i the template. 
+            // being evaulated i the template.
             var conditions = new List<SyntaxBase>();
             var loops = new List<(string name, ForSyntax @for, SyntaxBase? input)>();
 
@@ -492,7 +492,7 @@ namespace Bicep.Core.Emit
             if (resource.IsAzResource)
             {
                 emitter.EmitProperty(AzResourceTypeProvider.ResourceNamePropertyName, emitter.GetFullyQualifiedResourceName(resource));
-                
+
                 body = AddDecoratorsToBody(resource.Symbol.DeclaringResource, (ObjectSyntax)body, resource.Type);
                 emitter.EmitObjectProperties((ObjectSyntax)body, ResourcePropertiesToOmit.Add(AzResourceTypeProvider.ResourceNamePropertyName));
             }
@@ -581,7 +581,7 @@ namespace Bicep.Core.Emit
                     {
                         body = @for.Body;
                     }
-                    
+
                     var batchSize = GetBatchSize(moduleSymbol.DeclaringModule);
                     emitter.EmitProperty("copy", () => emitter.EmitCopyObject(moduleSymbol.Name, @for, input: null, batchSize: batchSize));
                     break;
@@ -699,7 +699,7 @@ namespace Bicep.Core.Emit
                     break;
                 default:
                     throw new InvalidOperationException($"Found dependency '{dependency.Resource.Name}' of unexpected type {dependency.GetType()}");
-            }            
+            }
         }
 
         private void EmitClassicDependsOnEntry(JsonTextWriter jsonWriter, ExpressionEmitter emitter, SyntaxBase newContext, ResourceDependency dependency)
@@ -799,8 +799,8 @@ namespace Bicep.Core.Emit
                 emitter.EmitProperty("value", outputSymbol.Value);
                 // emit any decorators on this output
                 var body = AddDecoratorsToBody(
-                outputSymbol.DeclaringOutput, 
-                SyntaxFactory.CreateObject(Enumerable.Empty<ObjectPropertySyntax>()), 
+                outputSymbol.DeclaringOutput,
+                SyntaxFactory.CreateObject(Enumerable.Empty<ObjectPropertySyntax>()),
                 outputSymbol.Type);
                 foreach (var (property, val) in body.ToNamedPropertyValueDictionary())
                 {
