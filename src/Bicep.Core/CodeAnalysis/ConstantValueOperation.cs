@@ -10,7 +10,12 @@ namespace Bicep.Core.CodeAnalysis
             Value = value;
         }
 
-        public ConstantValueOperation(int value)
+        public ConstantValueOperation(long value)
+        {
+            Value = value;
+        }
+
+        public ConstantValueOperation(bool value)
         {
             Value = value;
         }

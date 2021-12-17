@@ -38,22 +38,15 @@ namespace Bicep.Core.Emit
         /// The returned tree may be rooted at either a function expression or jtoken expression.
         /// </summary>
         /// <param name="expression">The expression</param>
-        private Operation ConvertExpressionOperation(SyntaxBase expression)
+        public Operation ConvertExpressionOperation(SyntaxBase expression)
         {
             switch (expression)
             {
                 case BooleanLiteralSyntax boolSyntax:
-                    return new FunctionCallOperation(boolSyntax.Value ? "true" : "false", ImmutableArray<Operation>.Empty);
+                    return new ConstantValueOperation(boolSyntax.Value);
 
                 case IntegerLiteralSyntax integerSyntax:
-                    if (integerSyntax.Value >= int.MinValue && integerSyntax.Value <= int.MaxValue)
-                    {
-                        return new ConstantValueOperation((int)integerSyntax.Value);
-                    }
-
-                    return new FunctionCallOperation(
-                        "json",
-                        new [] { new ConstantValueOperation(integerSyntax.Value.ToInvariantString()) });
+                    return new ConstantValueOperation(integerSyntax.Value);
 
                 case StringSyntax stringSyntax:
                     // using the throwing method to get semantic value of the string because
@@ -61,7 +54,7 @@ namespace Bicep.Core.Emit
                     return ConvertString(stringSyntax);
 
                 case NullLiteralSyntax _:
-                    return new FunctionCallOperation("null", ImmutableArray<Operation>.Empty);
+                    return new NullValueOperation();
 
                 case ObjectSyntax @object:
                     return ConvertObject(@object);
@@ -128,7 +121,7 @@ namespace Bicep.Core.Emit
 
                 case InstanceFunctionCallSyntax method:
                     var (baseSyntax, indexExpression) = SyntaxHelper.UnwrapArrayAccessSyntax(method.BaseExpression);
-                    var baseSymbol = context.SemanticModel.GetSymbolInfo(method.BaseExpression);
+                    var baseSymbol = context.SemanticModel.GetSymbolInfo(baseSyntax);
 
                     switch (baseSymbol)
                     {
@@ -246,94 +239,149 @@ namespace Bicep.Core.Emit
 
         public LanguageExpression ConvertOperation(Operation operation)
         {
-            return operation switch {
-                ConstantValueOperation op => op.Value switch {
-                    string value => new JTokenExpression(value),
-                    int value => new JTokenExpression(value),
-                    _ => throw new NotImplementedException($"Cannot convert constant type {op.Value?.GetType()}"),
-                },
-                PropertyAccessOperation op => AppendProperties(
-                    ToFunctionExpression(ConvertOperation(op.Base)),
-                    new JTokenExpression(op.PropertyName)),
-                ArrayAccessOperation op => AppendProperties(
-                    ToFunctionExpression(ConvertOperation(op.Base)),
-                    ConvertOperation(op.Access)),
-                ResourceIdOperation op => GetConverter(op.IndexContext).GetFullyQualifiedResourceId(op.Metadata),
-                ResourceNameOperation op => op.FullyQualified switch {
-                    true => GetConverter(op.IndexContext).GetFullyQualifiedResourceName(op.Metadata),
-                    false => GetConverter(op.IndexContext).ConvertExpression(op.Metadata.NameSyntax),
-                },
-                ResourceTypeOperation op => new JTokenExpression(op.Metadata.TypeReference.FormatType()),
-                ResourceApiVersionOperation op => op.Metadata.TypeReference.ApiVersion switch {
-                    {} apiVersion => new JTokenExpression(apiVersion),
-                    _ => throw new NotImplementedException(""),
-                },
-                ResourceInfoOperation op => CreateFunction(
-                    "resourceInfo",
-                    GenerateSymbolicReference(op.Metadata.Symbol.Name, op.IndexContext)),
-                ResourceReferenceOperation op => (op.Full, op.Metadata.IsExistingResource) switch {
-                    (true, _) => CreateFunction(
-                        "reference",
-                        ConvertOperation(op.ResourceId),
-                        new JTokenExpression(op.Metadata.TypeReference.ApiVersion!),
-                        new JTokenExpression("full")),
-                    (false, false) => CreateFunction(
-                        "reference",
-                        ConvertOperation(op.ResourceId)),
-                    (false, true) => CreateFunction(
-                        "reference",
-                        ConvertOperation(op.ResourceId),
-                        new JTokenExpression(op.Metadata.TypeReference.ApiVersion!)),
-                },
-                SymbolicResourceReferenceOperation op => (op.Full, op.Metadata.IsAzResource) switch {
-                    (true, true) => CreateFunction(
-                        "reference",
-                        GenerateSymbolicReference(op.Metadata.Symbol.Name, op.IndexContext),
-                        new JTokenExpression(op.Metadata.TypeReference.ApiVersion!),
-                        new JTokenExpression("full")),
-                    (true, _) => throw new NotImplementedException(""),
-                    (false, _) => CreateFunction(
-                        "reference",
-                        GenerateSymbolicReference(op.Metadata.Symbol.Name, op.IndexContext)),
-                },
-                ModuleNameOperation op => GetConverter(op.IndexContext).GetModuleNameExpression(op.Symbol),
-                ModuleOutputOperation op => context.Settings.EnableSymbolicNames switch {
-                    true => AppendProperties(
-                        CreateFunction(
+            switch (operation) {
+                case ConstantValueOperation op:
+                {
+                    return op.Value switch {
+                        string value => new JTokenExpression(value),
+                        long value when value <= int.MaxValue && value >= int.MinValue => new JTokenExpression((int)value),
+                        long value => CreateFunction("json", new JTokenExpression(value.ToInvariantString())),
+                        bool value => CreateFunction(value ? "true" : "false"),
+                        _ => throw new NotImplementedException($"Cannot convert constant type {op.Value?.GetType()}"),
+                    };
+                }
+                case NullValueOperation op:
+                {
+                    return CreateFunction("null");
+                }
+                case PropertyAccessOperation op:
+                {
+                    return AppendProperties(
+                        ToFunctionExpression(ConvertOperation(op.Base)),
+                        new JTokenExpression(op.PropertyName));
+                }
+                case ArrayAccessOperation op:
+                {
+                    return AppendProperties(
+                        ToFunctionExpression(ConvertOperation(op.Base)),
+                        ConvertOperation(op.Access));
+                }
+                case ResourceIdOperation op:
+                {
+                    return GetConverter(op.IndexContext).GetFullyQualifiedResourceId(op.Metadata);
+                }
+                case ResourceNameOperation op:
+                {
+                    return op.FullyQualified switch {
+                        true => GetConverter(op.IndexContext).GetFullyQualifiedResourceName(op.Metadata),
+                        false => GetConverter(op.IndexContext).ConvertExpression(op.Metadata.NameSyntax),
+                    };
+                }
+                case ResourceTypeOperation op:
+                {
+                    return new JTokenExpression(op.Metadata.TypeReference.FormatType());
+                }
+                case ResourceApiVersionOperation op:
+                {
+                    return op.Metadata.TypeReference.ApiVersion switch {
+                        {} apiVersion => new JTokenExpression(apiVersion),
+                        _ => throw new NotImplementedException(""),
+                    };
+                }
+                case ResourceInfoOperation op:
+                {
+                    return CreateFunction(
+                        "resourceInfo",
+                        GenerateSymbolicReference(op.Metadata.Symbol.Name, op.IndexContext));
+                }
+                case ResourceReferenceOperation op:
+                {
+                    return (op.Full, op.Metadata.IsExistingResource) switch {
+                        (true, _) => CreateFunction(
+                            "reference",
+                            ConvertOperation(op.ResourceId),
+                            new JTokenExpression(op.Metadata.TypeReference.ApiVersion!),
+                            new JTokenExpression("full")),
+                        (false, false) => CreateFunction(
+                            "reference",
+                            ConvertOperation(op.ResourceId)),
+                        (false, true) => CreateFunction(
+                            "reference",
+                            ConvertOperation(op.ResourceId),
+                            new JTokenExpression(op.Metadata.TypeReference.ApiVersion!)),
+                    };
+                }
+                case SymbolicResourceReferenceOperation op:
+                {
+                    return (op.Full, op.Metadata.IsAzResource) switch {
+                        (true, true) => CreateFunction(
+                            "reference",
+                            GenerateSymbolicReference(op.Metadata.Symbol.Name, op.IndexContext),
+                            new JTokenExpression(op.Metadata.TypeReference.ApiVersion!),
+                            new JTokenExpression("full")),
+                        (true, _) => throw new NotImplementedException(""),
+                        (false, _) => CreateFunction(
+                            "reference",
+                            GenerateSymbolicReference(op.Metadata.Symbol.Name, op.IndexContext)),
+                    };
+                }
+                case ModuleNameOperation op:
+                {
+                    return GetConverter(op.IndexContext).GetModuleNameExpression(op.Symbol);
+                }
+                case ModuleOutputOperation op:
+                {
+                    return context.Settings.EnableSymbolicNames switch {
+                        true => AppendProperties(
+                            CreateFunction(
+                                "reference",
+                                GenerateSymbolicReference(op.Symbol.Name, op.IndexContext)),
+                            new JTokenExpression("outputs"),
+                            ConvertOperation(op.PropertyName),
+                            new JTokenExpression("value")),
+                        false => AppendProperties(
+                            CreateFunction(
+                                "reference",
+                                GetConverter(op.IndexContext).GetFullyQualifiedResourceId(op.Symbol),
+                                // TODO remove this - it's not necessary to emit the API version
+                                new JTokenExpression(TemplateWriter.NestedDeploymentResourceApiVersion)),
+                            new JTokenExpression("outputs"),
+                            ConvertOperation(op.PropertyName),
+                            new JTokenExpression("value")),
+                    };
+                }
+                case VariableAccessOperation op:
+                {
+                    return CreateFunction(
+                        "variables",
+                        new JTokenExpression(op.Symbol.Name));
+                }
+                case ParameterAccessOperation op:
+                {
+                    return CreateFunction(
+                        "parameters",
+                        new JTokenExpression(op.Symbol.Name));
+                }
+                case ModuleReferenceOperation op:
+                {
+                    return context.Settings.EnableSymbolicNames switch {
+                        true => CreateFunction(
                             "reference",
                             GenerateSymbolicReference(op.Symbol.Name, op.IndexContext)),
-                        new JTokenExpression("outputs"),
-                        ConvertOperation(op.PropertyName),
-                        new JTokenExpression("value")),
-                    false => AppendProperties(
-                        CreateFunction(
+                        false => CreateFunction(
                             "reference",
                             GetConverter(op.IndexContext).GetFullyQualifiedResourceId(op.Symbol),
-                            // TODO remove this - it's not necessary to emit the API version
                             new JTokenExpression(TemplateWriter.NestedDeploymentResourceApiVersion)),
-                        new JTokenExpression("outputs"),
-                        ConvertOperation(op.PropertyName),
-                        new JTokenExpression("value")),
-                },
-                VariableAccessOperation op => CreateFunction(
-                    "variables",
-                    new JTokenExpression(op.Symbol.Name)),
-                ParameterAccessOperation op => CreateFunction(
-                    "parameters",
-                    new JTokenExpression(op.Symbol.Name)),
-                ModuleReferenceOperation op => context.Settings.EnableSymbolicNames switch {
-                    true => CreateFunction(
-                        "reference",
-                        GenerateSymbolicReference(op.Symbol.Name, op.IndexContext)),
-                    false => CreateFunction(
-                        "reference",
-                        GetConverter(op.IndexContext).GetFullyQualifiedResourceId(op.Symbol),
-                        new JTokenExpression(TemplateWriter.NestedDeploymentResourceApiVersion)),
-                },
-                FunctionCallOperation op => CreateFunction(
-                    op.Name,
-                    op.Parameters.Select(p => ConvertOperation(p))),
-                _ => throw new NotImplementedException(""),
+                    };
+                }
+                case FunctionCallOperation op:
+                {
+                    return CreateFunction(
+                        op.Name,
+                        op.Parameters.Select(p => ConvertOperation(p)));
+                }
+                default:
+                    throw new NotImplementedException("");
             };
         }
 
@@ -447,6 +495,20 @@ namespace Bicep.Core.Emit
             if (propertyAccess.BaseExpression is PropertyAccessSyntax childPropertyAccess &&
                 childPropertyAccess.PropertyName.NameEquals(LanguageConstants.ModuleOutputsPropertyName))
             {
+                if (childPropertyAccess.BaseExpression is VariableAccessSyntax grandChildVariableAccess &&
+                    context.SemanticModel.GetSymbolInfo(grandChildVariableAccess) is VariableSymbol variableSymbol &&
+                    context.VariablesToInline.Contains(variableSymbol))
+                {
+                    // This is imprecise as we don't check that that variable being accessed is solely composed of modules. We'd end up generating incorrect code for:
+                    // var foo = false ? mod1 : varWithOutputs
+                    // var bar = foo.outputs.someProp
+                    return new PropertyAccessOperation(
+                        new PropertyAccessOperation(
+                            ConvertVariableAccess(grandChildVariableAccess),
+                            propertyAccess.PropertyName.IdentifierName),
+                        "value");
+                }
+
                 if (context.SemanticModel.GetSymbolInfo(childPropertyAccess.BaseExpression) is ModuleSymbol outputModuleSymbol)
                 {
                     var indexContext = TryGetReplacementContext(GetModuleNameSyntax(outputModuleSymbol), null, propertyAccess);
@@ -854,7 +916,7 @@ namespace Bicep.Core.Emit
                     return new FunctionCallOperation("not", convertedOperand);
 
                 case UnaryOperator.Minus:
-                    if (convertedOperand is ConstantValueOperation literal && literal.Value is int intValue)
+                    if (convertedOperand is ConstantValueOperation literal && literal.Value is long intValue)
                     {
                         // invert the integer literal
                         return new ConstantValueOperation(-intValue);
