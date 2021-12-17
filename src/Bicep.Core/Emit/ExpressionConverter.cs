@@ -478,6 +478,7 @@ namespace Bicep.Core.Emit
         {
             if (context.SemanticModel.ResourceMetadata.TryLookup(propertyAccess.BaseExpression) is { } resource)
             {
+                // we are doing property access on a single resource
                 var indexContext = TryGetReplacementContext(resource.NameSyntax, null, propertyAccess);
                 return ConvertResourcePropertyAccess(resource, indexContext, propertyAccess.PropertyName.IdentifierName);
             }
@@ -546,8 +547,7 @@ namespace Bicep.Core.Emit
             // TODO move this into az extension
             var typeReference = resource.TypeReference;
             var ancestors = this.context.SemanticModel.ResourceAncestors.GetAncestors(resource);
-            var nameSyntax = resource.NameSyntax;
-            var nameExpression = ConvertExpression(nameSyntax);
+            var nameExpression = ConvertExpression(resource.NameSyntax);
 
             var typesAfterProvider = typeReference.TypeSegments.Skip(1).ToImmutableArray();
 
@@ -555,13 +555,10 @@ namespace Bicep.Core.Emit
             {
                 var firstAncestorNameLength = typesAfterProvider.Length - ancestors.Length;
 
-                var resourceName = ConvertExpression(resource.NameSyntax);
-
                 var parentNames = ancestors.SelectMany((x, i) =>
                 {
-                    var nameSyntax = x.Resource.NameSyntax;
-                    var nameExpression = CreateConverterForIndexReplacement(nameSyntax, x.IndexExpression, x.Resource.Symbol.NameSyntax)
-                        .ConvertExpression(nameSyntax);
+                    var nameExpression = CreateConverterForIndexReplacement(x.Resource.NameSyntax, x.IndexExpression, resource.Symbol.NameSyntax)
+                        .ConvertExpression(x.Resource.NameSyntax);
 
                     if (i == 0 && firstAncestorNameLength > 1)
                     {
@@ -574,7 +571,7 @@ namespace Bicep.Core.Emit
                     return nameExpression.AsEnumerable();
                 });
 
-                return parentNames.Concat(resourceName.AsEnumerable());
+                return parentNames.Concat(nameExpression.AsEnumerable());
             }
 
             if (typesAfterProvider.Length == 1)
@@ -622,7 +619,7 @@ namespace Bicep.Core.Emit
         public static SyntaxBase GetModuleNameSyntax(ModuleSymbol moduleSymbol)
         {
             // this condition should have already been validated by the type checker
-            return moduleSymbol.SafeGetBodyPropertyValue(LanguageConstants.ModuleNamePropertyName) ?? throw new ArgumentException($"Expected module syntax body to contain property 'name'");
+            return moduleSymbol.TryGetBodyPropertyValue(LanguageConstants.ModuleNamePropertyName) ?? throw new ArgumentException($"Expected module syntax body to contain property 'name'");
         }
 
         public LanguageExpression GetUnqualifiedResourceId(ResourceMetadata resource)
