@@ -174,6 +174,13 @@ namespace Bicep.Core.Emit
             }
         }
 
+        public IndexReplacementContext? TryGetReplacementContext(ResourceMetadata resource, SyntaxBase? indexExpression, SyntaxBase newContext)
+        {
+            var movedSyntax = context.Settings.EnableSymbolicNames ? resource.Symbol.NameSyntax : resource.NameSyntax;
+
+            return TryGetReplacementContext(movedSyntax, indexExpression, newContext);
+        }
+
         public IndexReplacementContext? TryGetReplacementContext(SyntaxBase nameSyntax, SyntaxBase? indexExpression, SyntaxBase newContext)
         {
             var inaccessibleLocals = this.context.DataFlowAnalyzer.GetInaccessibleLocalsAfterSyntaxMove(nameSyntax, newContext);
@@ -234,7 +241,7 @@ namespace Bicep.Core.Emit
                 if (context.SemanticModel.ResourceMetadata.TryLookup(arrayAccess.BaseExpression) is { } resource &&
                     resource.Symbol.IsCollection)
                 {
-                    var indexContent = TryGetReplacementContext(resource.NameSyntax, arrayAccess.IndexExpression, arrayAccess);
+                    var indexContent = TryGetReplacementContext(resource, arrayAccess.IndexExpression, arrayAccess);
                     return GetResourceReference(resource, indexContent, full: true);
                 }
 
@@ -332,8 +339,7 @@ namespace Bicep.Core.Emit
                             GenerateSymbolicReference(op.Metadata.Symbol.Name, op.IndexContext),
                             new JTokenExpression(op.Metadata.TypeReference.ApiVersion!),
                             new JTokenExpression("full")),
-                        (true, _) => throw new NotImplementedException(""),
-                        (false, _) => CreateFunction(
+                        _ => CreateFunction(
                             "reference",
                             GenerateSymbolicReference(op.Metadata.Symbol.Name, op.IndexContext)),
                     };
@@ -479,7 +485,7 @@ namespace Bicep.Core.Emit
             if (context.SemanticModel.ResourceMetadata.TryLookup(propertyAccess.BaseExpression) is { } resource)
             {
                 // we are doing property access on a single resource
-                var indexContext = TryGetReplacementContext(resource.NameSyntax, null, propertyAccess);
+                var indexContext = TryGetReplacementContext(resource, null, propertyAccess);
                 return ConvertResourcePropertyAccess(resource, indexContext, propertyAccess.PropertyName.IdentifierName);
             }
 
@@ -487,7 +493,7 @@ namespace Bicep.Core.Emit
                 context.SemanticModel.ResourceMetadata.TryLookup(propArrayAccess.BaseExpression) is { } resourceCollection)
             {
                 // we are doing property access on an array access of a resource collection
-                var indexContext = TryGetReplacementContext(resourceCollection.NameSyntax, propArrayAccess.IndexExpression, propertyAccess);
+                var indexContext = TryGetReplacementContext(resourceCollection, propArrayAccess.IndexExpression, propertyAccess);
                 return ConvertResourcePropertyAccess(resourceCollection, indexContext, propertyAccess.PropertyName.IdentifierName);
             }
 

@@ -41,15 +41,10 @@ namespace Bicep.Core.Semantics
             }
             else if (resource.Symbol.TryGetBodyPropertyValue(LanguageConstants.ResourceParentPropertyName) is { } referenceParentSyntax)
             {
-                SyntaxBase? indexExpression = null;
-                if (referenceParentSyntax is ArrayAccessSyntax arrayAccess)
-                {
-                    referenceParentSyntax = arrayAccess.BaseExpression;
-                    indexExpression = arrayAccess.IndexExpression;
-                }
+                var (baseSyntax, indexExpression) = SyntaxHelper.UnwrapArrayAccessSyntax(referenceParentSyntax);
 
                 // parent property reference syntax
-                if (semanticModel.ResourceMetadata.TryLookup(referenceParentSyntax) is { } parentResource)
+                if (semanticModel.ResourceMetadata.TryLookup(baseSyntax) is { } parentResource)
                 {
                     this.ancestry.Add(resource, new ResourceAncestor(ResourceAncestorType.ParentProperty, parentResource, indexExpression));
                 }

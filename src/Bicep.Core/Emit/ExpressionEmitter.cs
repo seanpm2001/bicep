@@ -87,8 +87,6 @@ namespace Bicep.Core.Emit
                 case ForSyntax forSyntax:
                     return new ForLoopOperation(
                         GetExpressionOperation(forSyntax.Expression),
-                        forSyntax.ItemVariable!,
-                        forSyntax.IndexVariable,
                         GetExpressionOperation(forSyntax.Body));
 
                 case ParenthesizedExpressionSyntax _:
@@ -203,7 +201,7 @@ namespace Bicep.Core.Emit
 
         public void EmitIndexedSymbolReference(ResourceMetadata resource, SyntaxBase indexExpression, SyntaxBase newContext)
         {
-            var replacementContext = converter.TryGetReplacementContext(resource.NameSyntax, indexExpression, newContext);
+            var replacementContext = converter.TryGetReplacementContext(resource, indexExpression, newContext);
             var expression = converter.GenerateSymbolicReference(resource.Symbol.Name, replacementContext);
 
             writer.WriteValue(ExpressionSerializer.SerializeExpression(expression));
