@@ -66,7 +66,7 @@ namespace Bicep.Core.Semantics
 
             return this;
         }
-        
+
         public FunctionOverloadBuilder WithDescription(string description)
         {
             this.Description = description;

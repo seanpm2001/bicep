@@ -921,7 +921,7 @@ namespace Bicep.LanguageServer.Completions
                 yield return CreateConditionCompletion(context.ReplacementRange);
             }
         }
-        
+
         private IEnumerable<CompletionItem> GetDisableNextLineDiagnosticsDirectiveCompletion(BicepCompletionContext context)
         {
             if (context.Kind.HasFlag(BicepCompletionContextKind.DisableNextLineDiagnosticsDirectiveStart))
@@ -987,7 +987,7 @@ namespace Bicep.LanguageServer.Completions
 
             return null;
         }
-        
+
         private static CompletionItem CreateResourceOrModuleConditionCompletion(Range replacementRange)
         {
             const string conditionLabel = "if";
@@ -1214,7 +1214,7 @@ namespace Bicep.LanguageServer.Completions
                 .WithDocumentation($"```bicep\n{new Snippet(snippet).FormatDocumentation()}\n```")
                 .WithSortText(GetSortText(label, priority))
                 .Build();
-        
+
         private static CompletionItem CreateSymbolCompletion(Symbol symbol, Range replacementRange, bool disableFollowUp = false, string? insertText = null)
         {
             insertText ??= symbol.Name;

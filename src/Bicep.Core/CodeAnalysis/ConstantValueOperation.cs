@@ -3,7 +3,7 @@
 
 namespace Bicep.Core.CodeAnalysis
 {
-    public class ConstantValueOperation : Operation
+    public record ConstantValueOperation : Operation
     {
         public ConstantValueOperation(string value)
         {

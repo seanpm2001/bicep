@@ -3,18 +3,10 @@
 
 namespace Bicep.Core.CodeAnalysis
 {
-    public class ForLoopOperation : Operation
+    public record ForLoopOperation(
+        Operation Expression,
+        Operation Body) : Operation
     {
-        public ForLoopOperation(Operation expression, Operation body)
-        {
-            this.Expression = expression;
-            this.Body = body;
-        }
-
-        public Operation Expression { get; }
-
-        public Operation Body { get; }
-
         public override void Accept(IOperationVisitor visitor)
             => visitor.VisitForLoopOperation(this);
     }

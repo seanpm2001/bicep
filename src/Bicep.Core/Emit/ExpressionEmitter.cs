@@ -71,13 +71,13 @@ namespace Bicep.Core.Emit
 
                 case ObjectSyntax objectSyntax:
                     var properties = objectSyntax.Properties.Select(prop => new ObjectPropertyOperation(
-                        prop.TryGetKeyText() is {} keyName ? new ConstantValueOperation(keyName) : GetExpressionOperation(prop.Key),
+                        prop.TryGetKeyText() is { } keyName ? new ConstantValueOperation(keyName) : GetExpressionOperation(prop.Key),
                         GetExpressionOperation(prop.Value)));
                     return new ObjectOperation(properties.ToImmutableArray());
 
                 case ObjectPropertySyntax prop:
                     return new ObjectPropertyOperation(
-                        prop.TryGetKeyText() is {} keyName ? new ConstantValueOperation(keyName) : GetExpressionOperation(prop.Key),
+                        prop.TryGetKeyText() is { } keyName ? new ConstantValueOperation(keyName) : GetExpressionOperation(prop.Key),
                         GetExpressionOperation(prop.Value));
 
                 case ArraySyntax arraySyntax:
@@ -154,10 +154,12 @@ namespace Bicep.Core.Emit
                     return;
 
                 case GetKeyVaultSecretOperation getKeyVaultSecret:
-                    EmitProperty("reference", () => {
+                    EmitProperty("reference", () =>
+                    {
                         writer.WriteStartObject();
 
-                        EmitProperty("keyVault", () => {
+                        EmitProperty("keyVault", () =>
+                        {
                             writer.WriteStartObject();
                             EmitProperty("id", getKeyVaultSecret.KeyVaultId);
                             writer.WriteEndObject();
@@ -457,9 +459,9 @@ namespace Bicep.Core.Emit
         public void EmitObjectProperties(ObjectSyntax objectSyntax, ISet<string>? propertiesToOmit = null)
         {
             var properties = objectSyntax.Properties
-                .Where(p => p.TryGetKeyText() is not {} keyName || propertiesToOmit is null || !propertiesToOmit.Contains(keyName))
+                .Where(p => p.TryGetKeyText() is not { } keyName || propertiesToOmit is null || !propertiesToOmit.Contains(keyName))
                 .Select(p => new ObjectPropertyOperation(
-                    p.TryGetKeyText() is {} keyName ? new ConstantValueOperation(keyName) : GetExpressionOperation(p.Key),
+                    p.TryGetKeyText() is { } keyName ? new ConstantValueOperation(keyName) : GetExpressionOperation(p.Key),
                     GetExpressionOperation(p.Value)));
 
             var operation = new ObjectOperation(properties.ToImmutableArray());

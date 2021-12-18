@@ -3,12 +3,8 @@
 
 namespace Bicep.Core.CodeAnalysis
 {
-    public class NullValueOperation : Operation
+    public record NullValueOperation() : Operation
     {
-        public NullValueOperation()
-        {
-        }
-
         public override void Accept(IOperationVisitor visitor)
             => visitor.VisitNullValueOperation(this);
     }

@@ -4,17 +4,10 @@ using Bicep.Core.Semantics;
 
 namespace Bicep.Core.CodeAnalysis
 {
-    public class ModuleReferenceOperation : Operation
+    public record ModuleReferenceOperation(
+        ModuleSymbol Symbol,
+        IndexReplacementContext? IndexContext) : Operation
     {
-        public ModuleReferenceOperation(ModuleSymbol symbol, IndexReplacementContext? indexContext)
-        {
-            Symbol = symbol;
-        }
-
-        public ModuleSymbol Symbol { get; }
-
-        public IndexReplacementContext? IndexContext { get; }
-
         public override void Accept(IOperationVisitor visitor)
             => visitor.VisitModuleReferenceOperation(this);
     }

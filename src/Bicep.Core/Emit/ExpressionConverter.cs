@@ -130,7 +130,7 @@ namespace Bicep.Core.Emit
                             return new FunctionCallOperation(
                                 method.Name.IdentifierName,
                                 method.Arguments.Select(a => ConvertExpressionOperation(a.Expression)).ToImmutableArray());
-                        case {} _ when context.SemanticModel.ResourceMetadata.TryLookup(baseSyntax) is { } resource:
+                        case { } _ when context.SemanticModel.ResourceMetadata.TryLookup(baseSyntax) is { } resource:
                             if (method.Name.IdentifierName.StartsWithOrdinalInsensitively("list"))
                             {
                                 // Handle list<method_name>(...) method on resource symbol - e.g. stgAcc.listKeys()
@@ -259,146 +259,154 @@ namespace Bicep.Core.Emit
 
         public LanguageExpression ConvertOperation(Operation operation)
         {
-            switch (operation) {
+            switch (operation)
+            {
                 case ConstantValueOperation op:
-                {
-                    return op.Value switch {
-                        string value => new JTokenExpression(value),
-                        long value when value <= int.MaxValue && value >= int.MinValue => new JTokenExpression((int)value),
-                        long value => CreateFunction("json", new JTokenExpression(value.ToInvariantString())),
-                        bool value => CreateFunction(value ? "true" : "false"),
-                        _ => throw new NotImplementedException($"Cannot convert constant type {op.Value?.GetType()}"),
-                    };
-                }
+                    {
+                        return op.Value switch
+                        {
+                            string value => new JTokenExpression(value),
+                            long value when value <= int.MaxValue && value >= int.MinValue => new JTokenExpression((int)value),
+                            long value => CreateFunction("json", new JTokenExpression(value.ToInvariantString())),
+                            bool value => CreateFunction(value ? "true" : "false"),
+                            _ => throw new NotImplementedException($"Cannot convert constant type {op.Value?.GetType()}"),
+                        };
+                    }
                 case NullValueOperation op:
-                {
-                    return CreateFunction("null");
-                }
+                    {
+                        return CreateFunction("null");
+                    }
                 case PropertyAccessOperation op:
-                {
-                    return AppendProperties(
-                        ToFunctionExpression(ConvertOperation(op.Base)),
-                        new JTokenExpression(op.PropertyName));
-                }
+                    {
+                        return AppendProperties(
+                            ToFunctionExpression(ConvertOperation(op.Base)),
+                            new JTokenExpression(op.PropertyName));
+                    }
                 case ArrayAccessOperation op:
-                {
-                    return AppendProperties(
-                        ToFunctionExpression(ConvertOperation(op.Base)),
-                        ConvertOperation(op.Access));
-                }
+                    {
+                        return AppendProperties(
+                            ToFunctionExpression(ConvertOperation(op.Base)),
+                            ConvertOperation(op.Access));
+                    }
                 case ResourceIdOperation op:
-                {
-                    return GetConverter(op.IndexContext).GetFullyQualifiedResourceId(op.Metadata);
-                }
+                    {
+                        return GetConverter(op.IndexContext).GetFullyQualifiedResourceId(op.Metadata);
+                    }
                 case ResourceNameOperation op:
-                {
-                    return op.FullyQualified switch {
-                        true => GetConverter(op.IndexContext).GetFullyQualifiedResourceName(op.Metadata),
-                        false => GetConverter(op.IndexContext).ConvertExpression(op.Metadata.NameSyntax),
-                    };
-                }
+                    {
+                        return op.FullyQualified switch
+                        {
+                            true => GetConverter(op.IndexContext).GetFullyQualifiedResourceName(op.Metadata),
+                            false => GetConverter(op.IndexContext).ConvertExpression(op.Metadata.NameSyntax),
+                        };
+                    }
                 case ResourceTypeOperation op:
-                {
-                    return new JTokenExpression(op.Metadata.TypeReference.FormatType());
-                }
+                    {
+                        return new JTokenExpression(op.Metadata.TypeReference.FormatType());
+                    }
                 case ResourceApiVersionOperation op:
-                {
-                    return op.Metadata.TypeReference.ApiVersion switch {
-                        {} apiVersion => new JTokenExpression(apiVersion),
-                        _ => throw new NotImplementedException(""),
-                    };
-                }
+                    {
+                        return op.Metadata.TypeReference.ApiVersion switch
+                        {
+                            { } apiVersion => new JTokenExpression(apiVersion),
+                            _ => throw new NotImplementedException(""),
+                        };
+                    }
                 case ResourceInfoOperation op:
-                {
-                    return CreateFunction(
-                        "resourceInfo",
-                        GenerateSymbolicReference(op.Metadata.Symbol.Name, op.IndexContext));
-                }
+                    {
+                        return CreateFunction(
+                            "resourceInfo",
+                            GenerateSymbolicReference(op.Metadata.Symbol.Name, op.IndexContext));
+                    }
                 case ResourceReferenceOperation op:
-                {
-                    return (op.Full, op.Metadata.IsExistingResource) switch {
-                        (true, _) => CreateFunction(
-                            "reference",
-                            ConvertOperation(op.ResourceId),
-                            new JTokenExpression(op.Metadata.TypeReference.ApiVersion!),
-                            new JTokenExpression("full")),
-                        (false, false) => CreateFunction(
-                            "reference",
-                            ConvertOperation(op.ResourceId)),
-                        (false, true) => CreateFunction(
-                            "reference",
-                            ConvertOperation(op.ResourceId),
-                            new JTokenExpression(op.Metadata.TypeReference.ApiVersion!)),
-                    };
-                }
+                    {
+                        return (op.Full, op.Metadata.IsExistingResource) switch
+                        {
+                            (true, _) => CreateFunction(
+                                "reference",
+                                ConvertOperation(op.ResourceId),
+                                new JTokenExpression(op.Metadata.TypeReference.ApiVersion!),
+                                new JTokenExpression("full")),
+                            (false, false) => CreateFunction(
+                                "reference",
+                                ConvertOperation(op.ResourceId)),
+                            (false, true) => CreateFunction(
+                                "reference",
+                                ConvertOperation(op.ResourceId),
+                                new JTokenExpression(op.Metadata.TypeReference.ApiVersion!)),
+                        };
+                    }
                 case SymbolicResourceReferenceOperation op:
-                {
-                    return (op.Full, op.Metadata.IsAzResource) switch {
-                        (true, true) => CreateFunction(
-                            "reference",
-                            GenerateSymbolicReference(op.Metadata.Symbol.Name, op.IndexContext),
-                            new JTokenExpression(op.Metadata.TypeReference.ApiVersion!),
-                            new JTokenExpression("full")),
-                        _ => CreateFunction(
-                            "reference",
-                            GenerateSymbolicReference(op.Metadata.Symbol.Name, op.IndexContext)),
-                    };
-                }
+                    {
+                        return (op.Full, op.Metadata.IsAzResource) switch
+                        {
+                            (true, true) => CreateFunction(
+                                "reference",
+                                GenerateSymbolicReference(op.Metadata.Symbol.Name, op.IndexContext),
+                                new JTokenExpression(op.Metadata.TypeReference.ApiVersion!),
+                                new JTokenExpression("full")),
+                            _ => CreateFunction(
+                                "reference",
+                                GenerateSymbolicReference(op.Metadata.Symbol.Name, op.IndexContext)),
+                        };
+                    }
                 case ModuleNameOperation op:
-                {
-                    return GetConverter(op.IndexContext).GetModuleNameExpression(op.Symbol);
-                }
+                    {
+                        return GetConverter(op.IndexContext).GetModuleNameExpression(op.Symbol);
+                    }
                 case ModuleOutputOperation op:
-                {
-                    return context.Settings.EnableSymbolicNames switch {
-                        true => AppendProperties(
-                            CreateFunction(
+                    {
+                        return context.Settings.EnableSymbolicNames switch
+                        {
+                            true => AppendProperties(
+                                CreateFunction(
+                                    "reference",
+                                    GenerateSymbolicReference(op.Symbol.Name, op.IndexContext)),
+                                new JTokenExpression("outputs"),
+                                ConvertOperation(op.PropertyName),
+                                new JTokenExpression("value")),
+                            false => AppendProperties(
+                                CreateFunction(
+                                    "reference",
+                                    GetConverter(op.IndexContext).GetFullyQualifiedResourceId(op.Symbol),
+                                    // TODO remove this - it's not necessary to emit the API version
+                                    new JTokenExpression(TemplateWriter.NestedDeploymentResourceApiVersion)),
+                                new JTokenExpression("outputs"),
+                                ConvertOperation(op.PropertyName),
+                                new JTokenExpression("value")),
+                        };
+                    }
+                case VariableAccessOperation op:
+                    {
+                        return CreateFunction(
+                            "variables",
+                            new JTokenExpression(op.Symbol.Name));
+                    }
+                case ParameterAccessOperation op:
+                    {
+                        return CreateFunction(
+                            "parameters",
+                            new JTokenExpression(op.Symbol.Name));
+                    }
+                case ModuleReferenceOperation op:
+                    {
+                        return context.Settings.EnableSymbolicNames switch
+                        {
+                            true => CreateFunction(
                                 "reference",
                                 GenerateSymbolicReference(op.Symbol.Name, op.IndexContext)),
-                            new JTokenExpression("outputs"),
-                            ConvertOperation(op.PropertyName),
-                            new JTokenExpression("value")),
-                        false => AppendProperties(
-                            CreateFunction(
+                            false => CreateFunction(
                                 "reference",
                                 GetConverter(op.IndexContext).GetFullyQualifiedResourceId(op.Symbol),
-                                // TODO remove this - it's not necessary to emit the API version
                                 new JTokenExpression(TemplateWriter.NestedDeploymentResourceApiVersion)),
-                            new JTokenExpression("outputs"),
-                            ConvertOperation(op.PropertyName),
-                            new JTokenExpression("value")),
-                    };
-                }
-                case VariableAccessOperation op:
-                {
-                    return CreateFunction(
-                        "variables",
-                        new JTokenExpression(op.Symbol.Name));
-                }
-                case ParameterAccessOperation op:
-                {
-                    return CreateFunction(
-                        "parameters",
-                        new JTokenExpression(op.Symbol.Name));
-                }
-                case ModuleReferenceOperation op:
-                {
-                    return context.Settings.EnableSymbolicNames switch {
-                        true => CreateFunction(
-                            "reference",
-                            GenerateSymbolicReference(op.Symbol.Name, op.IndexContext)),
-                        false => CreateFunction(
-                            "reference",
-                            GetConverter(op.IndexContext).GetFullyQualifiedResourceId(op.Symbol),
-                            new JTokenExpression(TemplateWriter.NestedDeploymentResourceApiVersion)),
-                    };
-                }
+                        };
+                    }
                 case FunctionCallOperation op:
-                {
-                    return CreateFunction(
-                        op.Name,
-                        op.Parameters.Select(p => ConvertOperation(p)));
-                }
+                    {
+                        return CreateFunction(
+                            op.Name,
+                            op.Parameters.Select(p => ConvertOperation(p)));
+                    }
                 default:
                     throw new NotImplementedException("");
             };
@@ -434,7 +442,7 @@ namespace Bicep.Core.Emit
 
                     // Note that we don't want to return the fully-qualified resource name in the case of name property access.
                     // we should return whatever the user has set as the value of the 'name' property for a predictable user experience.
-                    return new ResourceNameOperation(resource, indexContext, fullyQualified: false);
+                    return new ResourceNameOperation(resource, indexContext, FullyQualified: false);
                 case ("type", false):
                     return new ResourceTypeOperation(resource);
                 case ("apiVersion", false):
@@ -940,7 +948,7 @@ namespace Bicep.Core.Emit
 
                     return new FunctionCallOperation(
                         "sub",
-                        new [] {
+                        new[] {
                             new ConstantValueOperation(0),
                             convertedOperand,
                         });

@@ -3,18 +3,10 @@
 
 namespace Bicep.Core.CodeAnalysis
 {
-    public class ObjectPropertyOperation : Operation
+    public record ObjectPropertyOperation(
+        Operation Key,
+        Operation Value) : Operation
     {
-        public ObjectPropertyOperation(Operation key, Operation value)
-        {
-            Key = key;
-            Value = value;
-        }
-
-        public Operation Key { get; }
-
-        public Operation Value { get; }
-
         public override void Accept(IOperationVisitor visitor)
             => visitor.VisitObjectPropertyOperation(this);
     }

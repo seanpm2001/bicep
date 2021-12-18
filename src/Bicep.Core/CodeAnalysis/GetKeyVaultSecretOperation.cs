@@ -3,21 +3,11 @@
 
 namespace Bicep.Core.CodeAnalysis
 {
-    public class GetKeyVaultSecretOperation : Operation
+    public record GetKeyVaultSecretOperation(
+        ResourceIdOperation KeyVaultId,
+        Operation SecretName,
+        Operation? SecretVersion) : Operation
     {
-        public GetKeyVaultSecretOperation(ResourceIdOperation keyVaultId, Operation secretName, Operation? secretVersion)
-        {
-            KeyVaultId = keyVaultId;
-            SecretName = secretName;
-            SecretVersion = secretVersion;
-        }
-
-        public ResourceIdOperation KeyVaultId { get; }
-
-        public Operation SecretName { get; }
-
-        public Operation? SecretVersion { get; }
-
         public override void Accept(IOperationVisitor visitor)
             => visitor.VisitGetKeyVaultSecretOperation(this);
     }

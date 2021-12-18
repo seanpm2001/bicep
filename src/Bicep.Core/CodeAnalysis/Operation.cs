@@ -3,12 +3,8 @@
 
 namespace Bicep.Core.CodeAnalysis
 {
-    public abstract class Operation
+    public abstract record Operation()
     {
-        protected Operation()
-        {
-        }
-
         public abstract void Accept(IOperationVisitor visitor);
     }
 }

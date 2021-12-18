@@ -30,7 +30,7 @@ namespace Bicep.Core.Semantics.Namespaces
         public const string lastDescription = "Returns the last element of the array, or last character of the string.";
         public const string minDescription = "Returns the minimum value from an array of integers or a comma-separated list of integers.";
         public const string maxDescription = "Returns the maximum value from an array of integers or a comma-separated list of integers.";
-        
+
         public static NamespaceSettings Settings { get; } = new(
             IsSingleton: true,
             BicepProviderName: BuiltInName,

@@ -46,7 +46,7 @@ namespace Bicep.RegistryModuleTool.ModuleFiles
         public string Content { get; }
 
         public IEnumerable<MainArmTemplateParameter> Parameters => this.lazyParameters.Value;
-        
+
         public IEnumerable<MainArmTemplateOutput> Outputs => this.lazyOutputs.Value;
 
         public static MainArmTemplateFile Generate(IFileSystem fileSystem, BicepCliProxy bicepCliProxy, MainBicepFile mainBicepFile)

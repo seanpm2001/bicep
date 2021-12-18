@@ -78,7 +78,7 @@ namespace Bicep.RegistryModuleTool.UnitTests.Proxies
         {
             // Arrange.
 
-            var warnings  = new[]
+            var warnings = new[]
             {
                 @"c:\main.bicep(43,5) : Warning BCP037: The property ""extra"" is not allowed on objects of type ""ManagedClusterProperties"". Permissible properties include ""aadProfile"", ""addonProfiles"", ""apiServerAccessProfile"", ""autoScalerProfile"", ""diskEncryptionSetID"", ""enablePodSecurityPolicy"", ""enableRBAC"", ""identityProfile"", ""kubernetesVersion"", ""networkProfile"", ""nodeResourceGroup"", ""windowsProfile"". If this is an inaccuracy in the documentation, please report it to the Bicep Team. [https://aka.ms/bicep-type-issues]",
                 @"c:\main.bicep(56,7) : Warning BCP037: The property ""addtional"" is not allowed on objects of type ""ContainerServiceLinuxProfile"". No other properties are allowed. If this is an inaccuracy in the documentation, please report it to the Bicep Team. [https://aka.ms/bicep-type-issues]",

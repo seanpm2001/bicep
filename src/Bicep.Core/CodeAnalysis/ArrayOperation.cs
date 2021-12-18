@@ -4,15 +4,9 @@ using System.Collections.Immutable;
 
 namespace Bicep.Core.CodeAnalysis
 {
-    public class ArrayOperation : Operation
+    public record ArrayOperation(
+        ImmutableArray<Operation> Items) : Operation
     {
-        public ArrayOperation(ImmutableArray<Operation> items)
-        {
-            Items = items;
-        }
-
-        public ImmutableArray<Operation> Items { get; }
-
         public override void Accept(IOperationVisitor visitor)
             => visitor.VisitArrayOperation(this);
     }

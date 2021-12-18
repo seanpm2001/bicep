@@ -4,15 +4,9 @@ using Bicep.Core.Semantics;
 
 namespace Bicep.Core.CodeAnalysis
 {
-    public class ParameterAccessOperation : Operation
+    public record ParameterAccessOperation(
+        ParameterSymbol Symbol) : Operation
     {
-        public ParameterAccessOperation(ParameterSymbol symbol)
-        {
-            Symbol = symbol;
-        }
-
-        public ParameterSymbol Symbol { get; }
-
         public override void Accept(IOperationVisitor visitor)
             => visitor.VisitParameterAccessOperation(this);
     }
