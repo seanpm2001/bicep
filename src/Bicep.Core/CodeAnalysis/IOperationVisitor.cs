@@ -48,5 +48,11 @@ namespace Bicep.Core.CodeAnalysis
         void VisitObjectOperation(ObjectOperation operation);
 
         void VisitObjectPropertyOperation(ObjectPropertyOperation operation);
+
+        void VisitOutputOperation(OutputOperation operation);
+
+        void VisitParameterOperation(ParameterOperation operation);
+
+        void VisitImportOperation(ImportOperation operation);
     }
 }

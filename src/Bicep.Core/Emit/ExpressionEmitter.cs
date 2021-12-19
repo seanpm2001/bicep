@@ -38,7 +38,7 @@ namespace Bicep.Core.Emit
             this.converter = new ExpressionConverter(context);
         }
 
-        private Operation GetExpressionOperation(SyntaxBase syntax)
+        public Operation GetExpressionOperation(SyntaxBase syntax)
         {
             var symbol = context.SemanticModel.GetSymbolInfo(syntax);
             if (symbol is VariableSymbol variableSymbol && context.VariablesToInline.Contains(variableSymbol))
@@ -110,7 +110,7 @@ namespace Bicep.Core.Emit
         public void EmitExpression(SyntaxBase syntax)
             => EmitOperation(GetExpressionOperation(syntax));
 
-        private void EmitOperation(Operation operation)
+        public void EmitOperation(Operation operation)
         {
             switch (operation)
             {
@@ -169,6 +169,57 @@ namespace Bicep.Core.Emit
                         if (getKeyVaultSecret.SecretVersion is not null)
                         {
                             EmitProperty("secretVersion", getKeyVaultSecret.SecretVersion);
+                        }
+
+                        writer.WriteEndObject();
+                    });
+                    return;
+
+                case OutputOperation output:
+                    EmitProperty(output.Name, () => {
+                        writer.WriteStartObject();
+
+                        EmitProperty("type", output.Type);
+                        if (output.Value is ForLoopOperation forLoop)
+                        {
+                            EmitProperty("copy", () => EmitCopyObject(name: null, forLoop, forLoop.Body));
+                        }
+                        else
+                        {
+                            EmitProperty("value", output.Value);
+                        }
+
+                        foreach (var property in output.AdditionalProperties)
+                        {
+                            EmitOperation(property);
+                        }
+
+                        writer.WriteEndObject();
+                    });
+                    return;
+
+                case ParameterOperation parameter:
+                    EmitProperty(parameter.Name, () => {
+                        writer.WriteStartObject();
+
+                        foreach (var property in parameter.AdditionalProperties)
+                        {
+                            EmitOperation(property);
+                        }
+
+                        writer.WriteEndObject();
+                    });
+                    return;
+
+                case ImportOperation import:
+                    EmitProperty(import.AliasName, () => {
+                        writer.WriteStartObject();
+
+                        EmitProperty("provider", import.NamespaceType.Settings.ArmTemplateProviderName);
+                        EmitProperty("version", import.NamespaceType.Settings.ArmTemplateProviderVersion);
+                        if (import.Config is { } config)
+                        {
+                            EmitProperty("config", config);
                         }
 
                         writer.WriteEndObject();

@@ -22,6 +22,7 @@ using Newtonsoft.Json.Linq;
 using Bicep.Core.Semantics.Metadata;
 using System.Diagnostics;
 using Bicep.Core.Workspaces;
+using Bicep.Core.CodeAnalysis;
 
 namespace Bicep.Core.Emit
 {
@@ -167,8 +168,31 @@ namespace Bicep.Core.Emit
 
             foreach (var parameterSymbol in this.context.SemanticModel.Root.ParameterDeclarations)
             {
-                jsonWriter.WritePropertyName(parameterSymbol.Name);
-                this.EmitParameter(jsonWriter, parameterSymbol, emitter);
+                if (SyntaxHelper.TryGetPrimitiveType(parameterSymbol.DeclaringParameter) is not TypeSymbol primitiveType)
+                {
+                    // this should have been caught by the type checker long ago
+                    throw new ArgumentException($"Unable to find primitive type for parameter {parameterSymbol.Name}");
+                }
+
+                var objectWithDecorators = SyntaxFactory.CreateObject(new [] {
+                    SyntaxFactory.CreateObjectProperty("type", SyntaxFactory.CreateStringLiteral(primitiveType.Name)),
+                });
+                if (parameterSymbol.DeclaringParameter.Modifier is ParameterDefaultValueSyntax defaultValueSyntax)
+                {
+                    objectWithDecorators = objectWithDecorators.MergeProperty("defaultValue", defaultValueSyntax.DefaultValue);
+                }
+
+                objectWithDecorators = AddDecoratorsToBody(
+                    parameterSymbol.DeclaringParameter,
+                    objectWithDecorators,
+                    primitiveType);
+
+                var objectOperation = emitter.GetExpressionOperation(objectWithDecorators) as ObjectOperation;
+                var operation = new ParameterOperation(
+                    parameterSymbol.Name,
+                    objectOperation?.Properties ?? ImmutableArray<ObjectPropertyOperation>.Empty);
+
+                emitter.EmitOperation(operation);
             }
 
             jsonWriter.WriteEndObject();
@@ -201,38 +225,6 @@ namespace Bicep.Core.Emit
             }
 
             return result;
-        }
-
-        private void EmitParameter(JsonTextWriter jsonWriter, ParameterSymbol parameterSymbol, ExpressionEmitter emitter)
-        {
-            var declaringParameter = parameterSymbol.DeclaringParameter;
-            if (SyntaxHelper.TryGetPrimitiveType(declaringParameter) is not TypeSymbol primitiveType)
-            {
-                // this should have been caught by the type checker long ago
-                throw new ArgumentException($"Unable to find primitive type for parameter {parameterSymbol.Name}");
-            }
-
-            jsonWriter.WriteStartObject();
-
-            var parameterType = SyntaxFactory.CreateStringLiteral(primitiveType.Name);
-            var parameterObject = SyntaxFactory.CreateObject(SyntaxFactory.CreateObjectProperty("type", parameterType).AsEnumerable());
-
-            if (declaringParameter.Modifier is ParameterDefaultValueSyntax defaultValueSyntax)
-            {
-                parameterObject = parameterObject.MergeProperty("defaultValue", defaultValueSyntax.DefaultValue);
-            }
-
-            parameterObject = AddDecoratorsToBody(declaringParameter, parameterObject, primitiveType);
-
-            foreach (var property in parameterObject.Properties)
-            {
-                if (property.TryGetKeyText() is string propertyName)
-                {
-                    emitter.EmitProperty(propertyName, property.Value);
-                }
-            }
-
-            jsonWriter.WriteEndObject();
         }
 
         private void EmitVariablesIfPresent(JsonTextWriter jsonWriter, ExpressionEmitter emitter)
@@ -295,17 +287,12 @@ namespace Bicep.Core.Emit
                 var namespaceType = context.SemanticModel.GetTypeInfo(import.DeclaringSyntax) as NamespaceType
                     ?? throw new ArgumentException("Imported namespace does not have namespace type");
 
-                jsonWriter.WritePropertyName(import.DeclaringImport.AliasName.IdentifierName);
-                jsonWriter.WriteStartObject();
+                var operation = new ImportOperation(
+                    import.DeclaringImport.AliasName.IdentifierName,
+                    namespaceType,
+                    import.DeclaringImport.Config is null ? null : emitter.GetExpressionOperation(import.DeclaringImport.Config));
 
-                emitter.EmitProperty("provider", namespaceType.Settings.ArmTemplateProviderName);
-                emitter.EmitProperty("version", namespaceType.Settings.ArmTemplateProviderVersion);
-                if (import.DeclaringImport.Config is { } config)
-                {
-                    emitter.EmitProperty("config", config);
-                }
-
-                jsonWriter.WriteEndObject();
+                emitter.EmitOperation(operation);
             }
 
             jsonWriter.WriteEndObject();
@@ -795,34 +782,19 @@ namespace Bicep.Core.Emit
 
             foreach (var outputSymbol in this.context.SemanticModel.Root.OutputDeclarations)
             {
-                jsonWriter.WritePropertyName(outputSymbol.Name);
-                EmitOutput(jsonWriter, outputSymbol, emitter);
-            }
+                var objectWithDecorators = AddDecoratorsToBody(
+                    outputSymbol.DeclaringOutput,
+                    SyntaxFactory.CreateObject(Enumerable.Empty<ObjectPropertySyntax>()),
+                    outputSymbol.Type);
+                var objectOperation = emitter.GetExpressionOperation(objectWithDecorators) as ObjectOperation;
 
-            jsonWriter.WriteEndObject();
-        }
+                var operation = new OutputOperation(
+                    outputSymbol.Name,
+                    outputSymbol.Type.Name,
+                    emitter.GetExpressionOperation(outputSymbol.Value),
+                    objectOperation?.Properties ?? ImmutableArray<ObjectPropertyOperation>.Empty);
 
-        private void EmitOutput(JsonTextWriter jsonWriter, OutputSymbol outputSymbol, ExpressionEmitter emitter)
-        {
-            jsonWriter.WriteStartObject();
-
-            emitter.EmitProperty("type", outputSymbol.Type.Name);
-            if (outputSymbol.Value is ForSyntax @for)
-            {
-                emitter.EmitProperty("copy", () => emitter.EmitCopyObject(name: null, @for, @for.Body));
-            }
-            else
-            {
-                emitter.EmitProperty("value", outputSymbol.Value);
-            }
-
-            // emit any decorators on this output
-            foreach (var (property, val) in AddDecoratorsToBody(
-                outputSymbol.DeclaringOutput,
-                SyntaxFactory.CreateObject(Enumerable.Empty<ObjectPropertySyntax>()),
-                outputSymbol.Type).ToNamedPropertyValueDictionary())
-            {
-                emitter.EmitProperty(property, val);
+                emitter.EmitOperation(operation);
             }
 
             jsonWriter.WriteEndObject();
