@@ -8,6 +8,7 @@ import os from "os";
 
 import { executeCreateConfigFileCommand } from "./commands";
 import {} from "fs";
+import { getLogger } from "../../utils/logger";
 
 describe("bicep.createConfigFile", (): void => {
   afterEach(async () => {
@@ -82,18 +83,25 @@ describe("bicep.createConfigFile", (): void => {
 
 function createUniqueTempFolder(filenamePrefix: string): string {
   const tempFolder = os.tmpdir();
+
+  getLogger().info(`tempFolder: ${tempFolder}`);
+  getLogger().info(`fse.existsSync(tempFolder): ${fse.existsSync(tempFolder)}`);
   if (!fse.existsSync(tempFolder)) {
-    console.log(`Creating ${tempFolder}`);
+    getLogger().info(`Creating ${tempFolder}`);
     fse.mkdirSync(tempFolder);
-    console.log(`Created ${tempFolder}`);
+    getLogger().info(`Created ${tempFolder}`);
   }
+  getLogger().info(`fse.existsSync(tempFolder): ${fse.existsSync(tempFolder)}`);
 
   const tempSubfolder = fse.mkdtempSync(path.join(tempFolder, filenamePrefix));
   if (!fse.existsSync(tempSubfolder)) {
-    console.log(`Creating ${tempSubfolder}`);
+    getLogger().info(`Creating ${tempSubfolder}`);
     fse.mkdirSync(tempSubfolder);
-    console.log(`Created ${tempSubfolder}`);
+    getLogger().info(`Created ${tempSubfolder}`);
   }
+  getLogger().info(
+    `fse.existsSync(tempSubfolder): ${fse.existsSync(tempSubfolder)}`
+  );
 
   return tempSubfolder;
 }
