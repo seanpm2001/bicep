@@ -47,6 +47,7 @@ async function go() {
         ...cliArguments,
         "--install-extension",
         "ms-dotnettools.vscode-dotnet-runtime",
+        "--force",
         ...userDataArguments,
       ];
 

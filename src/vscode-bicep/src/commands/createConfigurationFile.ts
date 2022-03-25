@@ -6,6 +6,7 @@ import { Command } from "./types";
 import { LanguageClient } from "vscode-languageclient/node";
 import {
   IActionContext,
+  parseError,
   UserCancelledError,
 } from "@microsoft/vscode-azext-utils";
 import path from "path";
@@ -15,6 +16,7 @@ import {
   createBicepConfigRequestType,
   getRecommendedConfigLocationRequestType,
 } from "../language/protocol";
+import { getLogger } from "../utils";
 
 const bicepConfig = "bicepconfig.json";
 
@@ -29,6 +31,15 @@ export class CreateBicepConfigurationFile implements Command {
     suppressQuery?: boolean, // If true, the recommended location is used without querying user (for testing)
     rethrow?: boolean // (for testing)
   ): Promise<string | undefined> {
+    // eslint-disable-next-line no-debugger
+    debugger;
+    console.warn("console.warn");
+    console.error("console.error");
+    console.log("console.log");
+    getLogger().debug("getLogger().debug()");
+    getLogger().warn("getLogger().warn()");
+    getLogger().error("getLogger().error()");
+
     _context.errorHandling.rethrow = !!rethrow;
 
     documentUri ??= window.activeTextEditor?.document.uri;
@@ -73,6 +84,29 @@ export class CreateBicepConfigurationFile implements Command {
           break;
         }
       }
+    }
+
+    // eslint-disable-next-line no-debugger
+    debugger;
+    getLogger().debug(`selectedPath: ${selectedPath}`);
+    let p = selectedPath;
+    while (path.dirname(p) !== p) {
+      try {
+        getLogger().debug(`${p}:`);
+      } catch (err) {
+        getLogger().error(parseError(err).message);
+      }
+      try {
+        getLogger().debug(`  exists: ${fse.existsSync(p)}`);
+      } catch (err) {
+        getLogger().error(parseError(err).message);
+      }
+      try {
+        getLogger().debug(`  dir: ${fse.readdirSync(p).join(" | ")}`);
+      } catch (err) {
+        getLogger().error(parseError(err).message);
+      }
+      p = path.dirname(p);
     }
 
     await this.client.sendRequest(createBicepConfigRequestType, {

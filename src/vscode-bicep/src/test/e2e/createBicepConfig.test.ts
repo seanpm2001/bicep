@@ -9,12 +9,17 @@ import os from "os";
 import { executeCreateConfigFileCommand } from "./commands";
 import {} from "fs";
 
+// eslint-disable-next-line no-debugger
+debugger;
+
 describe("bicep.createConfigFile", (): void => {
   afterEach(async () => {
     await vscode.commands.executeCommand("workbench.action.closeAllEditors");
   });
 
   it("should create valid config file and open it", async () => {
+    // eslint-disable-next-line no-debugger
+    debugger;
     const tempFolder = createUniqueTempFolder("createBicepConfigTest-");
     const fakeBicepPath = path.join(tempFolder, "main.bicep");
     try {
@@ -81,6 +86,8 @@ describe("bicep.createConfigFile", (): void => {
 });
 
 function createUniqueTempFolder(filenamePrefix: string): string {
+  // eslint-disable-next-line no-debugger
+  debugger;
   const tempFolder = os.tmpdir();
   if (!fse.existsSync(tempFolder)) {
     fse.mkdirSync(tempFolder, { recursive: true });

@@ -10,7 +10,7 @@
   "preview": false,
   "aiKey": "AIF-d9b70cd4-b9f9-4d70-929b-a071c400b217",
   "engines": {
-    "vscode": "^1.52.0"
+    "vscode": "^1.65.0"
   },
   "categories": [
     "Azure",
