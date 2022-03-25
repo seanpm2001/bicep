@@ -304,7 +304,7 @@
     "watch": "webpack --watch --mode development --stats=minimal",
     "lint": "eslint src --ext ts",
     "lint:fix": "eslint src --ext ts --fix",
-    "testlocal:e2e": "(export BICEP_LANGUAGE_SERVER_PATH=../Bicep.LangServer/bin/Debug/net6.0/Bicep.LangServer.dll || set BICEP_LANGUAGE_SERVER_PATH=../Bicep.LangServer/bin/Debug/net6.0/Bicep.LangServer.dll) && npm run build && npm run build:e2e && npm run test:e2e",
+    "testlocal:e2e": "(export BICEP_LANGUAGE_SERVER_PATH=${INIT_CWD}/../Bicep.LangServer/bin/Debug/net6.0/Bicep.LangServer.dll || set BICEP_LANGUAGE_SERVER_PATH=%INIT_CWD%/../Bicep.LangServer/bin/Debug/net6.0/Bicep.LangServer.dll) && npm run build && npm run build:e2e && npm run test:e2e",
     "test:e2e": "node ./out/test/e2e/runTests.js",
     "test:unit": "jest --config jest.config.unit.js",
     "test:snapshot": "jest --config jest.config.snapshot.js",
