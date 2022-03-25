@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 import * as vscode from "vscode";
+import { getLogger } from "../../utils/logger";
 
 // More can be added as needed: https://code.visualstudio.com/api/references/commands.
 
@@ -59,10 +60,13 @@ export async function executeBuildCommand(
 export async function executeCreateConfigFileCommand(
   documentUri?: vscode.Uri
 ): Promise<string | undefined> {
-  return await vscode.commands.executeCommand<string>(
+  getLogger().debug(`asdfg10`);
+  const a = await vscode.commands.executeCommand<string>(
     "bicep.createConfigFile",
     documentUri,
     true, // suppressQuery
     true // rethrow
   );
+  getLogger().debug(`asdfg11: ${a}`);
+  return a;
 }
