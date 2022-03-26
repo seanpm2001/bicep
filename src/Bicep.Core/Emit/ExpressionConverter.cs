@@ -656,12 +656,13 @@ namespace Bicep.Core.Emit
             }
             else if (resource is DeclaredResourceMetadata declared)
             {
+                var nameSegments = GetResourceNameSegments(declared);
                 return ScopeHelper.FormatFullyQualifiedResourceId(
                     context,
                     this,
                     context.ResourceScopeData[declared],
                     resource.TypeReference.FormatType(),
-                    GetResourceNameSegments(declared));
+                    nameSegments);
             }
             else
             {

@@ -1,11 +1,13 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using Bicep.Core.UnitTests;
 using Bicep.Core.UnitTests.Assertions;
 using Bicep.Core.UnitTests.Utils;
 using FluentAssertions.Execution;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Newtonsoft.Json.Linq;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Bicep.Core.IntegrationTests
 {
@@ -16,6 +18,9 @@ namespace Bicep.Core.IntegrationTests
     [TestClass]
     public class Issue6075Tests
     {
+        [NotNull]
+        public TestContext? TestContext { get; set; }
+
         [TestMethod]
         public void ThreeNestedResources_AllIndexVariables()
         {
