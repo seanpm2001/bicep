@@ -26,7 +26,7 @@ import {
   UserCancelledError,
 } from "@microsoft/vscode-azext-utils";
 
-import { deploymentScopeRequestType } from "../language";
+import { BicepDeployParams, deploymentScopeRequestType } from "../language";
 
 export class DeployCommand implements Command {
   private _none: IAzureQuickPickItem = {
@@ -260,7 +260,6 @@ export class DeployCommand implements Command {
     );
 
     await this.sendDeployCommand(
-      textDocument,
       parameterFilePath,
       subscriptionId,
       deploymentScope,
